@@ -304,9 +304,9 @@
     const BUFFS = [
         // Common (Rarity 1) - 強力な基礎バフ
         { id: 'atk_base', title: '剛腕', desc: '攻撃力 +15', apply: (p) => p.atk += 15, rarity: 1 },
-        { id: 'hp_base', title: '巨人化', desc: '最大HP +50 (回復)', apply: (p) => { p.maxHp += 50; p.hp += 50; }, rarity: 1 },
+        { id: 'hp_base', title: '巨人化', desc: '最大HP +80 (回復)', apply: (p) => { p.maxHp += 80; p.hp += 80; }, rarity: 1 },
         { id: 'crit_base', title: 'ウィークポイント', desc: 'クリ率 +15%', apply: (p) => p.spd += 15, rarity: 1 },
-        { id: 'def_base', title: '鋼の皮膚', desc: '防御力 +5', apply: (p) => p.def += 5, rarity: 1 },
+        { id: 'def_base', title: '鋼の皮膚', desc: '防御力 +8', apply: (p) => p.def += 8, rarity: 1 },
         { id: 'multi_base', title: '残像', desc: '連撃率 +20%', apply: (p) => p.multiHit += 20, rarity: 1 },
         { id: 'heal_full', title: '完全回復', desc: 'HPを全快し、最大HP+10', apply: (p) => { p.maxHp += 10; p.hp = p.maxHp; }, rarity: 1 },
         
@@ -322,9 +322,9 @@
         // Rare (Rarity 3) - ゲーム崩壊級
         { id: 'atk_double', title: '覇王の力', desc: '攻撃力 2倍', apply: (p) => p.atk *= 2, rarity: 3 },
         { id: 'god_speed', title: '時間停止', desc: '連撃率 +100% (確定+1回攻撃)', apply: (p) => p.multiHit += 100, rarity: 3 },
-        { id: 'glass_cannon', title: '破壊神の契約', desc: '攻撃力 3倍 だが 最大HPが1になる', apply: (p) => { p.atk *= 3; p.maxHp = 1; p.hp = 1; }, rarity: 3 },
+        { id: 'glass_cannon', title: '破壊神の契約', desc: '攻撃力 2.5倍 だが 最大HPが1になる', apply: (p) => { p.atk = Math.floor(p.atk * 2.5); p.maxHp = 1; p.hp = 1; }, rarity: 3 },
         { id: 'immortal', title: '不死身', desc: '最大HP 3倍 & 防御 +50', apply: (p) => { p.maxHp *= 3; p.hp = p.maxHp; p.def += 50; }, rarity: 3 },
-        { id: 'assassin', title: '即死の刃', desc: 'クリ倍率 +300% & クリ率 +30%', apply: (p) => { p.critDmg += 3.0; p.spd += 30; }, rarity: 3 },
+        { id: 'assassin', title: '即死の刃', desc: 'クリ倍率 +250% & クリ率 +30%', apply: (p) => { p.critDmg += 2.5; p.spd += 30; }, rarity: 3 },
         
         // New Strategic Buffs
         { id: 'double_edged_sword', title: '諸刃の剣', desc: '防御力が0になるが、攻撃力x1.8倍', apply: (p) => { p.def = 0; p.atk = Math.floor(p.atk * 1.8); }, rarity: 2 },
@@ -367,17 +367,12 @@
             type = { name: 'メタルスライム', emoji: '⚪', scale: 1.8 };
         }
 
-        // Scaling logic for "Musou" mode
-        // Enemies need to ramp up too, or it gets boring instantly
-        let baseHp = 10 * Math.pow(1.15, f); // Exponential HP growth
-        if (f > 10) baseHp *= 1.5;
-        if (f > 20) baseHp *= 2;
-        
+        // Scaling logic for "Musou" mode - Smoother curve
+        let baseHp = 15 * Math.pow(1.12, f) + (f * 5); // Base exponential + linear growth
+        let baseAtk = 3 * Math.pow(1.08, f) + f;     // Softer attack scaling
+
         ENEMY.maxHp = Math.floor(baseHp * type.scale);
         ENEMY.hp = ENEMY.maxHp;
-        
-        // Atk scaling
-        let baseAtk = 2 * Math.pow(1.2, f);
         
         ENEMY.atk = Math.floor(baseAtk * type.scale);
         if (ENEMY.atk < 1) ENEMY.atk = 1;

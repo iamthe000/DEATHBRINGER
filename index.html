@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slime Breaker: Musou Mode</title>
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --text-color: #e0e0e0;
+            --accent-color: #4ecca3;
+            --danger-color: #e94560;
+            --highlight-color: #ffd700;
+            --panel-bg: #16213e;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 600px;
+            background-color: var(--panel-bg);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
+            position: relative;
+        }
+
+        /* Screens */
+        .screen {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+        .screen.active { display: flex; }
+
+        /* Setup Screen */
+        input[type="text"] {
+            padding: 10px;
+            font-size: 1.2rem;
+            border-radius: 5px;
+            border: 2px solid var(--accent-color);
+            background: #0f3460;
+            color: white;
+            margin-bottom: 20px;
+            width: 80%;
+            text-align: center;
+        }
+
+        /* Battle Screen */
+        #battle-screen { justify-content: flex-start; }
+        
+        .status-bar {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .entity-display {
+            width: 100%;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+
+        .name-tag { font-size: 1.1rem; margin-bottom: 5px; display: flex; justify-content: space-between; }
+        .hp-bar-container {
+            width: 100%;
+            height: 20px;
+            background-color: #333;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        .hp-bar-fill {
+            height: 100%;
+            background-color: var(--danger-color);
+            width: 100%;
+            transition: width 0.3s ease;
+        }
+        .hp-text {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            top: 0;
+            line-height: 20px;
+            font-size: 0.8rem;
+            color: white;
+            text-shadow: 1px 1px 2px black;
+        }
+
+        .visual-area {
+            font-size: 4rem;
+            margin: 10px 0;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-shadow: 0 0 20px rgba(255,255,255,0.2);
+        }
+
+        #log-area {
+            flex-grow: 1;
+            width: 100%;
+            background: #0f3460;
+            border: 1px solid #333;
+            border-radius: 5px;
+            padding: 10px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            text-align: left;
+            font-family: monospace;
+            font-size: 0.9rem;
+            box-sizing: border-box;
+        }
+        .log-entry { margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 2px;}
+        .log-player { color: #a5f3fc; }
+        .log-enemy { color: #fca5a5; }
+        .log-sys { color: #fbbf24; }
+        .log-crit { color: #ffd700; font-weight: bold; font-size: 1.1em; }
+
+        /* Buttons */
+        .btn {
+            background-color: var(--accent-color);
+            color: #1a1a2e;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1.1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.1s, background-color 0.2s;
+            margin: 5px;
+        }
+        .btn:hover { transform: scale(1.05); background-color: #6effd6; }
+        .btn:active { transform: scale(0.95); }
+        .btn-attack { width: 100%; background-color: var(--danger-color); color: white; font-size: 1.5rem; letter-spacing: 2px; }
+
+        /* Reward Screen */
+        .card-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+        }
+        .card {
+            background: #0f3460;
+            border: 2px solid var(--accent-color);
+            border-radius: 10px;
+            padding: 15px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            text-align: left;
+        }
+        .card:hover { transform: translateY(-5px); background: #1a1a2e; }
+        .card-title { font-size: 1.2rem; font-weight: bold; color: var(--accent-color); margin-bottom: 5px; }
+        .card-desc { font-size: 0.9rem; color: #ccc; }
+
+        /* Stats Panel */
+        #player-stats-mini {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            font-size: 0.8rem;
+            color: #888;
+            margin-bottom: 10px;
+        }
+        .stat-badge { background: #333; padding: 2px 6px; border-radius: 4px; }
+
+        /* Animations */
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+        .shake { animation: shake 0.4s; }
+        
+        @keyframes damage-flash {
+            0% { background-color: var(--panel-bg); }
+            50% { background-color: rgba(233, 69, 96, 0.3); }
+            100% { background-color: var(--panel-bg); }
+        }
+        .flash { animation: damage-flash 0.2s; }
+
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="start-screen" class="screen active">
+        <h1 style="color:var(--accent-color); text-shadow: 0 0 10px var(--accent-color);">DEATHBRINGER-to-SLYME</h1>
+        <p>バフを重ねよう</p>
+        <br>
+        <input type="text" id="player-name-input" placeholder="名前を入力" maxlength="8" value="DEATHBRINGER">
+        <button class="btn" onclick="startGame()">ゲーム開始</button>
+    </div>
+
+    <div id="battle-screen" class="screen">
+        <div class="status-bar">
+            <span>FLOOR: <span id="floor-display" style="color:var(--highlight-color)">1</span></span>
+            <span id="player-name-display">DEATHBRINGER</span>
+        </div>
+
+        <div class="entity-display">
+            <div class="name-tag">
+                <span id="enemy-name">スライム Lv.1</span>
+            </div>
+            <div class="visual-area" id="enemy-visual">🟢</div>
+            <div class="hp-bar-container">
+                <div id="enemy-hp-bar" class="hp-bar-fill"></div>
+                <div id="enemy-hp-text" class="hp-text">5/5</div>
+            </div>
+        </div>
+
+        <div id="log-area"></div>
+
+        <div id="player-stats-mini">
+            </div>
+
+        <div class="entity-display" style="border: 1px solid var(--accent-color);">
+            <div class="hp-bar-container">
+                <div id="player-hp-bar" class="hp-bar-fill" style="background-color: var(--accent-color);"></div>
+                <div id="player-hp-text" class="hp-text">100/100</div>
+            </div>
+        </div>
+
+        <button id="attack-btn" class="btn btn-attack" onclick="playerAttack()">⚔️ 攻撃</button>
+    </div>
+
+    <div id="reward-screen" class="screen">
+        <h2 style="color:var(--highlight-color)">LEVEL CLEARED!</h2>
+        <p>さらなる力を渇望せよ</p>
+        <div id="cards-container" class="card-container">
+            </div>
+    </div>
+
+    <div id="game-over-screen" class="screen">
+        <h1 style="color:var(--danger-color)">GAME OVER</h1>
+        <div style="font-size:4rem; margin:20px 0;">💀</div>
+        <p id="death-message"></p>
+        <h3 id="final-score">到達階層: 1</h3>
+        <button class="btn" onclick="location.reload()">もう一度挑む</button>
+    </div>
+</div>
+
+<script>
+    /* --- Game State --- */
+    const GAME = {
+        floor: 1,
+        turn: 0,
+        state: 'start',
+    };
+
+    const PLAYER = {
+        name: 'Player',
+        maxHp: 100,
+        hp: 100,
+        atk: 10,
+        def: 0,
+        spd: 5,      // Crit chance %
+        critDmg: 2.0, // Crit multiplier
+        vamp: 0,     // Vampirism %
+        multiHit: 0, // Multi-hit chance % (can exceed 100% now)
+        dodge: 0,  
+    };
+
+    let ENEMY = {
+        name: 'スライム',
+        maxHp: 5,
+        hp: 5,
+        atk: 1,
+        visual: '🟢',
+    };
+
+    /* --- Buff Database (BROKEN MODE) --- */
+    const BUFFS = [
+        // Common (Rarity 1) - 強力な基礎バフ
+        { id: 'atk_base', title: '剛腕', desc: '攻撃力 +15', apply: (p) => p.atk += 15, rarity: 1 },
+        { id: 'hp_base', title: '巨人化', desc: '最大HP +50 (回復)', apply: (p) => { p.maxHp += 50; p.hp += 50; }, rarity: 1 },
+        { id: 'crit_base', title: 'ウィークポイント', desc: 'クリ率 +15%', apply: (p) => p.spd += 15, rarity: 1 },
+        { id: 'def_base', title: '鋼の皮膚', desc: '防御力 +5', apply: (p) => p.def += 5, rarity: 1 },
+        { id: 'multi_base', title: '残像', desc: '連撃率 +20%', apply: (p) => p.multiHit += 20, rarity: 1 },
+        { id: 'heal_full', title: '完全回復', desc: 'HPを全快し、最大HP+10', apply: (p) => { p.maxHp += 10; p.hp = p.maxHp; }, rarity: 1 },
+        
+        // Uncommon (Rarity 2) - 乗算・シナジー系
+        { id: 'atk_mul', title: 'リミッター解除', desc: '攻撃力 x 1.5倍', apply: (p) => p.atk = Math.floor(p.atk * 1.5), rarity: 2 },
+        { id: 'hp_mul', title: '生命の奔流', desc: '最大HP x 1.5倍', apply: (p) => { p.maxHp = Math.floor(p.maxHp * 1.5); p.hp = p.maxHp; }, rarity: 2 },
+        { id: 'crit_dmg', title: 'フェイタルブロウ', desc: 'クリ倍率 +100%加算', apply: (p) => p.critDmg += 1.0, rarity: 2 },
+        { id: 'vamp_huge', title: '吸血鬼の晩餐', desc: '吸血 +25%', apply: (p) => p.vamp += 25, rarity: 2 },
+        { id: 'multi_rush', title: '百裂拳', desc: '連撃率 +50%', apply: (p) => p.multiHit += 50, rarity: 2 },
+        { id: 'hp_to_atk', title: '背水の陣', desc: '現在HPの20%を攻撃力に加算', apply: (p) => p.atk += Math.floor(p.hp * 0.2), rarity: 2 },
+        { id: 'def_to_atk', title: '攻防一体', desc: '防御力の2倍を攻撃力に加算', apply: (p) => p.atk += p.def * 2, rarity: 2 },
+
+        // Rare (Rarity 3) - ゲーム崩壊級
+        { id: 'atk_double', title: '覇王の力', desc: '攻撃力 2倍', apply: (p) => p.atk *= 2, rarity: 3 },
+        { id: 'god_speed', title: '時間停止', desc: '連撃率 +100% (確定+1回攻撃)', apply: (p) => p.multiHit += 100, rarity: 3 },
+        { id: 'glass_cannon', title: '破壊神の契約', desc: '攻撃力 3倍 だが 最大HPが1になる', apply: (p) => { p.atk *= 3; p.maxHp = 1; p.hp = 1; }, rarity: 3 },
+        { id: 'immortal', title: '不死身', desc: '最大HP 3倍 & 防御 +50', apply: (p) => { p.maxHp *= 3; p.hp = p.maxHp; p.def += 50; }, rarity: 3 },
+        { id: 'assassin', title: '即死の刃', desc: 'クリ倍率 +300% & クリ率 +30%', apply: (p) => { p.critDmg += 3.0; p.spd += 30; }, rarity: 3 },
+    ];
+
+    /* --- Core Functions --- */
+
+    function switchScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    }
+
+    function startGame() {
+        const nameInput = document.getElementById('player-name-input').value;
+        PLAYER.name = nameInput || '名無し';
+        document.getElementById('player-name-display').innerText = PLAYER.name;
+        
+        GAME.floor = 1;
+        log("無限の戦いが始まる…", 'sys');
+        spawnEnemy();
+        updateUI();
+        switchScreen('battle-screen');
+    }
+
+    function spawnEnemy() {
+        const f = GAME.floor;
+        
+        // Visual & Name variation
+        let type = { name: 'スライム', emoji: '🟢', scale: 1 };
+        
+        if (f % 10 === 0) {
+            type = { name: 'キングスライム', emoji: '👑', scale: 4.0 }; // Boss scale increased
+        } else if (f > 30) {
+            type = { name: 'ヴォイドスライム', emoji: '⚫', scale: 3.0 };
+        } else if (f > 20) {
+            type = { name: '魔王スライム', emoji: '👿', scale: 2.5 };
+        } else if (f > 10) {
+            type = { name: 'メタルスライム', emoji: '⚪', scale: 1.8 };
+        }
+
+        // Scaling logic for "Musou" mode
+        // Enemies need to ramp up too, or it gets boring instantly
+        let baseHp = 10 * Math.pow(1.15, f); // Exponential HP growth
+        if (f > 10) baseHp *= 1.5;
+        if (f > 20) baseHp *= 2;
+        
+        ENEMY.maxHp = Math.floor(baseHp * type.scale);
+        ENEMY.hp = ENEMY.maxHp;
+        
+        // Atk scaling
+        let baseAtk = 1 + (f * 1.5) + Math.pow(f, 1.2);
+        
+        ENEMY.atk = Math.floor(baseAtk * type.scale);
+        if (ENEMY.atk < 1) ENEMY.atk = 1;
+
+        ENEMY.name = `${type.name} Lv.${f}`;
+        ENEMY.visual = type.emoji;
+
+        // Log
+        log(`== ${GAME.floor}階 ==`, 'sys');
+        log(`${ENEMY.name} (HP:${nF(ENEMY.hp)}) が現れた！`, 'sys');
+        updateUI();
+    }
+
+    // Number formatter for huge numbers
+    function nF(num) {
+        if (num > 100000000) return (num / 100000000).toFixed(1) + '億';
+        if (num > 10000) return (num / 10000).toFixed(1) + '万';
+        return Math.floor(num);
+    }
+
+    function updateUI() {
+        document.getElementById('floor-display').innerText = GAME.floor;
+
+        const pHpPct = Math.max(0, (PLAYER.hp / PLAYER.maxHp) * 100);
+        document.getElementById('player-hp-bar').style.width = `${pHpPct}%`;
+        document.getElementById('player-hp-text').innerText = `${nF(PLAYER.hp)} / ${nF(PLAYER.maxHp)}`;
+
+        const eHpPct = Math.max(0, (ENEMY.hp / ENEMY.maxHp) * 100);
+        document.getElementById('enemy-hp-bar').style.width = `${eHpPct}%`;
+        document.getElementById('enemy-hp-text').innerText = `${nF(ENEMY.hp)} / ${nF(ENEMY.maxHp)}`;
+        
+        document.getElementById('enemy-name').innerText = ENEMY.name;
+        document.getElementById('enemy-visual').innerText = ENEMY.visual;
+
+        const statsHTML = `
+            <span class="stat-badge">ATK: ${nF(PLAYER.atk)}</span>
+            <span class="stat-badge">DEF: ${nF(PLAYER.def)}</span>
+            <span class="stat-badge">CRIT: ${PLAYER.spd}%</span>
+            <span class="stat-badge">CDMG: x${PLAYER.critDmg.toFixed(1)}</span>
+            <span class="stat-badge">MULTI: ${PLAYER.multiHit}%</span>
+            <span class="stat-badge">VAMP: ${PLAYER.vamp}%</span>
+        `;
+        document.getElementById('player-stats-mini').innerHTML = statsHTML;
+    }
+
+    function log(msg, type = 'sys') {
+        const area = document.getElementById('log-area');
+        const div = document.createElement('div');
+        div.className = `log-entry log-${type}`;
+        div.innerHTML = msg;
+        area.appendChild(div);
+        area.scrollTop = area.scrollHeight;
+    }
+
+    /* --- Combat Logic --- */
+
+    function playerAttack() {
+        if (GAME.state === 'reward') return;
+
+        const btn = document.getElementById('attack-btn');
+        btn.disabled = true;
+
+        // --- MULTI HIT LOGIC UNLEASHED ---
+        // 100% = +1 hit, 250% = +2 hits and 50% chance for 3rd, etc.
+        let baseHits = 1 + Math.floor(PLAYER.multiHit / 100);
+        let remainder = PLAYER.multiHit % 100;
+        if (Math.random() * 100 < remainder) baseHits++;
+
+        // Cap visual hits slightly to prevent browser freeze on infinite loops,
+        // but bundle the damage if it's absurdly high.
+        let actualHits = baseHits;
+        let visualCap = 10; 
+        
+        if (actualHits > 1) log(`<b>${PLAYER.name}の怒涛の${actualHits}連撃！</b>`, 'log-crit');
+
+        let currentHitIndex = 0;
+
+        const processHit = () => {
+            if (ENEMY.hp <= 0) return;
+            currentHitIndex++;
+
+            // Crit Calculation
+            // >100% crit chance adds damage? Let's keep it simple for now: Cap at 100% for proc, 
+            // but maybe we can add "Red Crit" later. For now, guaranteed crit if >100.
+            let isCrit = Math.random() * 100 < PLAYER.spd;
+            let dmg = PLAYER.atk;
+            if (isCrit) dmg = Math.floor(dmg * PLAYER.critDmg);
+            
+            // Variance
+            dmg = Math.floor(dmg * (0.9 + Math.random() * 0.2));
+            if (dmg < 1) dmg = 1;
+
+            ENEMY.hp -= dmg;
+            
+            // Visuals
+            const vis = document.getElementById('enemy-visual');
+            vis.classList.remove('shake');
+            void vis.offsetWidth; 
+            vis.classList.add('shake');
+
+            let msg = `HIT ${currentHitIndex}: ${nF(dmg)}ダメ`;
+            if (isCrit) msg = `HIT ${currentHitIndex}: <b>${nF(dmg)}</b> (CRIT!)`;
+            
+            // Only log every hit if hits are low, otherwise summarize or log chunks
+            if (actualHits <= 5 || currentHitIndex % 5 === 0 || currentHitIndex === actualHits) {
+                 log(msg, isCrit ? 'crit' : 'player');
+            }
+
+            // Vampirism
+            if (PLAYER.vamp > 0) {
+                const heal = Math.ceil(dmg * (PLAYER.vamp / 100));
+                if (heal > 0 && PLAYER.hp < PLAYER.maxHp) {
+                    PLAYER.hp = Math.min(PLAYER.maxHp, PLAYER.hp + heal);
+                }
+            }
+
+            updateUI();
+            
+            if (ENEMY.hp <= 0) {
+                checkWinCondition(btn);
+                return;
+            }
+
+            if (currentHitIndex < Math.min(actualHits, visualCap)) {
+                setTimeout(processHit, 100); // Fast interval
+            } else if (currentHitIndex < actualHits) {
+                // If we have 100 hits, just dump the rest instantly to save time
+                let remainingHits = actualHits - currentHitIndex;
+                let totalRemainingDmg = 0;
+                for(let i=0; i<remainingHits; i++) {
+                     let d = PLAYER.atk;
+                     if(Math.random()*100 < PLAYER.spd) d *= PLAYER.critDmg;
+                     totalRemainingDmg += d;
+                }
+                totalRemainingDmg = Math.floor(totalRemainingDmg);
+                ENEMY.hp -= totalRemainingDmg;
+                log(`...残りの連撃で 合計${nF(totalRemainingDmg)}ダメージ！`, 'log-crit');
+                updateUI();
+                checkWinCondition(btn);
+            } else {
+                checkWinCondition(btn);
+            }
+        };
+
+        processHit();
+    }
+
+    function checkWinCondition(btn) {
+        if (ENEMY.hp <= 0) {
+            ENEMY.hp = 0;
+            updateUI();
+            log(`<b>💥 ${ENEMY.name}を粉砕した！</b>`, 'sys');
+            setTimeout(showRewards, 400);
+        } else {
+            setTimeout(enemyTurn, 300);
+        }
+    }
+
+    function enemyTurn() {
+        if (ENEMY.hp <= 0) return;
+
+        // Dodge
+        if (Math.random() * 100 < PLAYER.dodge) {
+            log(`${ENEMY.name}の攻撃ミス！(回避)`, 'player');
+            document.getElementById('attack-btn').disabled = false;
+            return;
+        }
+
+        let dmg = ENEMY.atk - PLAYER.def;
+        if (dmg < 0) dmg = 0; 
+        
+        // Min damage scaling
+        const minDmg = Math.floor(GAME.floor / 5);
+        if (dmg < minDmg) dmg = minDmg;
+
+        PLAYER.hp -= dmg;
+        
+        const gameContainer = document.getElementById('game-container');
+        gameContainer.classList.remove('flash');
+        void gameContainer.offsetWidth; 
+        gameContainer.classList.add('flash');
+
+        if(dmg > 0) log(`${ENEMY.name}の攻撃！ ${nF(dmg)}ダメージを受けた。`, 'enemy');
+        else log(`${ENEMY.name}の攻撃！ ダメージを防いだ！`, 'sys');
+        
+        updateUI();
+
+        if (PLAYER.hp <= 0) {
+            PLAYER.hp = 0;
+            setTimeout(gameOver, 800);
+        } else {
+            document.getElementById('attack-btn').disabled = false;
+        }
+    }
+
+    /* --- Progression --- */
+
+    function showRewards() {
+        GAME.state = 'reward';
+        switchScreen('reward-screen');
+        
+        const container = document.getElementById('cards-container');
+        container.innerHTML = '';
+
+        const options = [];
+        for(let i=0; i<3; i++) {
+            // Weighted Random for Rarity
+            let rNum = Math.random();
+            let rarity = 1;
+            if (rNum < 0.3) rarity = 2; // 30% Uncommon
+            if (rNum < 0.1) rarity = 3; // 10% Rare
+            
+            const pool = BUFFS.filter(b => b.rarity === rarity);
+            const r = pool[Math.floor(Math.random() * pool.length)];
+            options.push(r);
+        }
+
+        options.forEach(buff => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            
+            let color = '#fff';
+            let bg = 'transparent';
+            if(buff.rarity === 2) { color = '#4ecca3'; }
+            if(buff.rarity === 3) { color = '#ffd700'; bg = 'rgba(255, 215, 0, 0.1)'; }
+
+            card.style.borderColor = color;
+            card.style.background = bg;
+            
+            card.innerHTML = `
+                <div class="card-title" style="color:${color}">${buff.title}</div>
+                <div class="card-desc">${buff.desc}</div>
+            `;
+            card.onclick = () => selectBuff(buff);
+            container.appendChild(card);
+        });
+    }
+
+    function selectBuff(buff) {
+        buff.apply(PLAYER);
+        log(`>> 【獲得】${buff.title}`, 'sys');
+        
+        GAME.floor++;
+        GAME.state = 'battle';
+        
+        switchScreen('battle-screen');
+        spawnEnemy();
+        document.getElementById('attack-btn').disabled = false;
+    }
+
+    function gameOver() {
+        GAME.state = 'gameover';
+        switchScreen('game-over-screen');
+        document.getElementById('final-score').innerText = `到達階層: ${GAME.floor}`;
+        document.getElementById('death-message').innerText = `${ENEMY.name} に敗北...`;
+    }
+
+</script>
+
+</body>
+</html>

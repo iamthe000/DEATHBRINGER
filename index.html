@@ -325,6 +325,11 @@
         { id: 'glass_cannon', title: '破壊神の契約', desc: '攻撃力 3倍 だが 最大HPが1になる', apply: (p) => { p.atk *= 3; p.maxHp = 1; p.hp = 1; }, rarity: 3 },
         { id: 'immortal', title: '不死身', desc: '最大HP 3倍 & 防御 +50', apply: (p) => { p.maxHp *= 3; p.hp = p.maxHp; p.def += 50; }, rarity: 3 },
         { id: 'assassin', title: '即死の刃', desc: 'クリ倍率 +300% & クリ率 +30%', apply: (p) => { p.critDmg += 3.0; p.spd += 30; }, rarity: 3 },
+        
+        // New Strategic Buffs
+        { id: 'double_edged_sword', title: '諸刃の剣', desc: '防御力が0になるが、攻撃力x1.8倍', apply: (p) => { p.def = 0; p.atk = Math.floor(p.atk * 1.8); }, rarity: 2 },
+        { id: 'growing_power', title: '成長する力', desc: `現在の階層x2の攻撃力を得る (現在+${GAME.floor * 2})`, apply: (p) => { p.atk += GAME.floor * 2; }, rarity: 2 },
+        { id: 'last_resort', title: '最後の切り札', desc: 'HPが満タンの場合、クリ率100%', apply: (p) => { p.spd = 100; }, rarity: 3 },
     ];
 
     /* --- Core Functions --- */
@@ -372,7 +377,7 @@
         ENEMY.hp = ENEMY.maxHp;
         
         // Atk scaling
-        let baseAtk = 1 + (f * 1.5) + Math.pow(f, 1.2);
+        let baseAtk = 2 * Math.pow(1.2, f);
         
         ENEMY.atk = Math.floor(baseAtk * type.scale);
         if (ENEMY.atk < 1) ENEMY.atk = 1;
@@ -578,7 +583,7 @@
         container.innerHTML = '';
 
         const options = [];
-        for(let i=0; i<3; i++) {
+        for(let i=0; i<4; i++) {
             // Weighted Random for Rarity
             let rNum = Math.random();
             let rarity = 1;

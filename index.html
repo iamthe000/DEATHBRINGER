@@ -109,14 +109,22 @@
             text-shadow: 1px 1px 2px black;
         }
 
+        /* --- 画像表示用にCSSを調整 --- */
         .visual-area {
-            font-size: 4rem;
             margin: 10px 0;
-            height: 80px;
+            height: 120px; /* 画像が入るように高さを確保 */
             display: flex;
             align-items: center;
             justify-content: center;
-            text-shadow: 0 0 20px rgba(255,255,255,0.2);
+            /* テキスト用の影は削除し、画像用のフィルタに変更しても良い */
+        }
+        
+        .enemy-sprite {
+            max-height: 100%;
+            max-width: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 0 10px rgba(255,255,255,0.2));
+            transition: transform 0.1s;
         }
 
         #log-area {
@@ -240,7 +248,7 @@ if ('serviceWorker' in navigator) {
             <div class="name-tag">
                 <span id="enemy-name">スライム Lv.1</span>
             </div>
-            <div class="visual-area" id="enemy-visual">🟢</div>
+            <div class="visual-area" id="enemy-visual"></div>
             <div class="hp-bar-container">
                 <div id="enemy-hp-bar" class="hp-bar-fill"></div>
                 <div id="enemy-hp-text" class="hp-text">5/5</div>
@@ -304,7 +312,7 @@ if ('serviceWorker' in navigator) {
         maxHp: 5,
         hp: 5,
         atk: 1,
-        visual: '🟢',
+        visual: 'enem.PNG', // デフォルト画像
     };
 
     /* --- Buff Database (BROKEN MODE) --- */
@@ -362,16 +370,17 @@ if ('serviceWorker' in navigator) {
         const f = GAME.floor;
         
         // Visual & Name variation
-        let type = { name: 'スライム', emoji: '🟢', scale: 1 };
+        // 画像ファイルのマッピング設定
+        let type = { name: 'スライム', img: 'enem.PNG', scale: 1 };
         
         if (f % 10 === 0) {
-            type = { name: 'キングスライム', emoji: '👑', scale: 4.0 }; // Boss scale increased
+            type = { name: 'キングスライム', img: 'enem_matu.PNG', scale: 4.0 }; // Boss
         } else if (f > 30) {
-            type = { name: 'ヴォイドスライム', emoji: '⚫', scale: 3.0 };
+            type = { name: 'ヴォイドスライム', img: 'kuro.PNG', scale: 3.0 };
         } else if (f > 20) {
-            type = { name: '魔王スライム', emoji: '👿', scale: 2.5 };
+            type = { name: '魔王スライム', img: 'yosano.PNG', scale: 2.5 };
         } else if (f > 10) {
-            type = { name: 'メタルスライム', emoji: '⚪', scale: 1.8 };
+            type = { name: 'メタルスライム', img: 'enem.PNG', scale: 1.8 }; // 画像がないため通常画像で代用
         }
 
         // Scaling logic for "Musou" mode - Smoother curve
@@ -385,7 +394,7 @@ if ('serviceWorker' in navigator) {
         if (ENEMY.atk < 1) ENEMY.atk = 1;
 
         ENEMY.name = `${type.name} Lv.${f}`;
-        ENEMY.visual = type.emoji;
+        ENEMY.visual = type.img; // 画像ファイル名をセット
 
         // Log
         log(`== ${GAME.floor}階 ==`, 'sys');
@@ -412,7 +421,10 @@ if ('serviceWorker' in navigator) {
         document.getElementById('enemy-hp-text').innerText = `${nF(ENEMY.hp)} / ${nF(ENEMY.maxHp)}`;
         
         document.getElementById('enemy-name').innerText = ENEMY.name;
-        document.getElementById('enemy-visual').innerText = ENEMY.visual;
+        
+        // 画像を表示するように変更
+        const visualArea = document.getElementById('enemy-visual');
+        visualArea.innerHTML = `<img src="${ENEMY.visual}" class="enemy-sprite" alt="Enemy">`;
 
         const statsHTML = `
             <span class="stat-badge">ATK: ${nF(PLAYER.atk)}</span>
